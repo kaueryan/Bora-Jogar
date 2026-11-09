@@ -24,7 +24,7 @@ jobs:
           npx cap sync ios
       - name: Compilar para simulador SEM assinatura Apple
         run: |
-          xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
+          xcodebuild -project ios/App/App.xcodeproj -scheme App \
             -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build
