@@ -52,6 +52,23 @@
 .auth-message.ok{color:#075b46}.auth-message.error{color:#a42828}
 .auth-account{display:flex;align-items:center;justify-content:space-between;gap:7px;margin:11px 0 0;padding:11px;border:1px solid var(--line);border-radius:11px;background:#f6faf7}
 .auth-account span{font-size:12px;word-break:break-word}
+
+/* Lista de participantes da partida */
+.roster-panel{margin-top:16px;padding:14px;border:1px solid #d5e8dc;background:linear-gradient(180deg,#f6fcf8,#fff);border-radius:14px}
+.roster-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.roster-heading h3{font-size:16px;line-height:1.2;margin:0}
+.roster-refresh{min-height:37px;padding:7px 11px;white-space:nowrap}
+.roster-caption{font-size:12px;color:var(--muted);margin:7px 0 11px}
+.roster-status{font-size:11px;color:var(--muted);margin:8px 0 0}
+.roster-list{min-height:45px}
+.roster-items{list-style:none;padding:0;margin:0;display:grid;gap:7px}
+.roster-item{padding:9px 10px;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2ece5;border-radius:11px}
+.roster-avatar{width:35px;height:35px;display:grid;place-items:center;flex:none;font-size:12px;font-weight:850;border-radius:50%;background:#dcefe4;color:#07664c}
+.roster-person{min-width:0;flex:1;display:grid;gap:1px}
+.roster-person strong{font-size:13px;overflow-wrap:anywhere}
+.roster-person span{font-size:11px;color:var(--muted)}
+.roster-me{font-size:10px;font-weight:800;color:#08735a;background:#e1f4ea;padding:3px 7px;border-radius:14px}
+
 </style>
 </head><body>
 <main id="app"><div class="phone">
@@ -74,7 +91,7 @@
 <button class="primary" type="submit">Criar conta e receber confirmação</button>
 </form>
 <p id="auth-message" class="auth-message" role="status" aria-live="polite"></p>
-<p class="auth-help">Após criar sua conta, confira a mensagem enviada ao seu e-mail. Confirme o endereço antes de entrar. Sua senha não fica salva pelo Bora Jogar.</p>
+<p class="auth-help">Após criar sua conta, confira a mensagem enviada ao seu e-mail. Confirme o endereço antes de entrar. Sua senha não fica salva pelo Bora Jogar. Ao participar de jogos, seu nome de exibição e cidade aparecerão na lista de participantes para outros atletas com conta.</p>
 </section>
 <div id="authenticated-content" hidden><section id="explore" aria-label="Mapa e partidas">
 <div class="filters" aria-label="Filtro de esportes"><button type="button" class="chip" data-sport="todos" aria-pressed="true">🌎 Todos</button><button type="button" class="chip" data-sport="volei" aria-pressed="false">🏐 Vôlei</button><button type="button" class="chip" data-sport="basquete" aria-pressed="false">🏀 Basquete</button><button type="button" class="chip" data-sport="futebol" aria-pressed="false">⚽ Futebol</button></div>
@@ -158,6 +175,7 @@ function showAuthMode(mode){
  authStatus('');
 }
 function switchToAuth(message=''){
+ rosterCache.clear();
  cloud.ready=false;cloud.userId=null;cloud.email=null;cloud.profile=null;cloud.events=[];cloud.counts={};cloud.joined=new Set();
  $('#authenticated-content').hidden=true;$('#auth-gate').hidden=false;
  cloudMessage('🔐 Faça login com seu e-mail confirmado para ver as partidas');
@@ -280,15 +298,50 @@ function renderList(list){
   const filled=getFilled(e),remaining=Math.max(0,e.capacity-filled);
   const row=document.createElement('article');row.className='event-row'+(e.id===active?' current':'');
   const status=remaining===0?'Lotado':`${remaining} ${e.kind==='campeonato'?'equipes':'vagas'}`;
-  row.innerHTML=`<div class="event-row-top"><div style="min-width:0"><div class="eyebrow">${safe(LABELS[e.kind])} · ${safe(e.city)}</div><h3>${ICONS[e.sport]} ${safe(e.title)}</h3></div><span class="mini-stat ${remaining===0?'lotado':''}">${safe(status)}</span></div><div class="meta">📅 ${safe(eventDate(e))} · ${safe(e.time)} &nbsp; 📍 ${safe(e.venue)}</div><div class="meta">${safe(e.address)}</div>`;
+  row.innerHTML=`<div class="event-row-top"><div style="min-width:0"><div class="eyebrow">${safe(LABELS[e.kind])} · ${safe(e.city)}</div><h3>${ICONS[e.sport]} ${safe(e.title)}</h3></div><span class="mini-stat ${remaining===0?'lotado':''}">${safe(status)}</span></div><div class="meta">📅 ${safe(eventDate(e))} · ${safe(e.time)} &nbsp; 📍 ${safe(e.venue)}</div><div class="meta">${safe(e.address)}</div><div class="meta">👥 ${filled} ${filled===1?'atleta inscrito':'atletas inscritos'} · Toque em Ver detalhes para conferir os nomes</div>`;
   const button=document.createElement('button');button.type='button';button.className='secondary open-detail';button.textContent=e.id===active?'✓ Ver detalhes abaixo':'Ver detalhes';
   button.addEventListener('click',()=>{active=e.id;render();$('#detail').scrollIntoView({behavior:'smooth',block:'nearest'})});
   row.append(button);box.append(row);
  }
 }
 
+
+const rosterCache=new Map();
+async function loadRoster(e,force=false){
+ const panel=$('#participants-panel');
+ if(!panel || panel.dataset.gameId!==String(e.id))return;
+ const list=panel.querySelector('.roster-list'),status=panel.querySelector('.roster-status');
+ const showPeople=people=>{
+   status.textContent=`${people.length} ${people.length===1?'atleta inscrito':'atletas inscritos'} • Lista atualizada para todos os atletas com conta`;
+   if(!people.length){list.innerHTML='<p class="hint">Ainda não há participantes confirmados. Seja o primeiro!</p>';return}
+   list.innerHTML='<ul class="roster-items">'+people.map((p,i)=>{
+      const name=String(p.display_name||'Atleta').trim().slice(0,45)||'Atleta';
+      const city=String(p.city||'Cidade não informada').trim();
+      const initials=name.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toLocaleUpperCase('pt-BR');
+      const me=CLOUD_ACTIVE&&p.athlete_id===cloud.userId;
+      return `<li class="roster-item"><div class="roster-avatar" aria-hidden="true">${safe(initials)}</div><div class="roster-person"><strong>${safe(name)}</strong><span>📍 ${safe(city)}</span></div>${me?'<span class="roster-me">Você</span>':''}</li>`;
+   }).join('')+'</ul>';
+ };
+ if(!CLOUD_ACTIVE){list.innerHTML='<p class="hint">A lista nominal aparece nos eventos reais compartilhados. Os eventos de exemplo não têm atletas cadastrados.</p>';status.textContent='Modo demonstração';return}
+ if(!cloud.ready||!cloud.client){list.textContent='Entre na sua conta para ver quem está inscrito.';status.textContent='';return}
+ const cache=rosterCache.get(String(e.id));
+ if(!force&&cache&&Date.now()-cache.at<15000){showPeople(cache.people);return}
+ const requestNumber=String(Number(panel.dataset.requestNumber||'0')+1);
+ panel.dataset.requestNumber=requestNumber;
+ list.innerHTML='<p class="hint">Carregando participantes...</p>';
+ status.textContent='';
+ const {data,error}=await cloud.client.rpc('game_participants',{p_game_id:e.id});
+ if($('#participants-panel')!==panel||panel.dataset.requestNumber!==requestNumber)return;
+ if(error){console.error('[Bora Jogar] Lista de participantes:',error);list.innerHTML='<p class="hint">Não foi possível carregar os inscritos. Tente atualizar.</p>';status.textContent='';return}
+ const people=Array.isArray(data)?data:[];
+ rosterCache.set(String(e.id),{people,at:Date.now()});
+ showPeople(people);
+}
+
 function render(){const list=filtered();if(!list.some(e=>e.id===active))active=list.length?list[0].id:null;applyMap();renderList(list);const box=$('#detail');if(!list.length){box.innerHTML='<div class="empty">Nenhum evento encontrado nesses filtros.<br>Que tal criar o primeiro? 👇<div class="btns"><button class="primary grow" id="go-create">Criar partida</button></div></div>';$('#go-create').onclick=()=>navigate('create');return}
-const e=all().find(x=>x.id===active);const capacity=getFilled(e),full=capacity>=e.capacity,member=enrolled(e);const spots=Math.max(0,e.capacity-capacity),isTeam=e.kind==='campeonato';const approx=e.approx?' • marcador aproximado/fictício':'';box.innerHTML=`<div class="line"><div style="min-width:0"><div class="eyebrow">${safe(LABELS[e.kind])} • ${safe(e.city)}${approx}</div><h2 class="event-title">${ICONS[e.sport]} ${safe(e.title)}</h2><div class="small">📅 ${safe(eventDate(e))} às ${safe(e.time)} · 📍 ${safe(e.venue)}</div><div class="small muted">${safe(e.address)}</div></div><div class="stat"><b>${capacity}/${e.capacity}</b><div class="small">${isTeam?'equipes':'pessoas'}</div></div></div><p class="hint">${member?'✅ Inscrição confirmada':full?'🔒 Evento lotado':`🟢 ${spots} ${isTeam?'vagas para equipes':'vagas disponíveis'}`}</p><div class="btns"><button id="join-btn" class="primary grow" ${full&&!member?'disabled':''}>${member?'Cancelar presença':isTeam?'Inscrever equipe':'Confirmar presença'}</button><button id="route-btn" class="secondary">${e.approx?'📍 Ver região':'🧭 Como chegar'}</button></div>${e.kind==='recorrente'?'<p class="hint">🔁 Evento recorrente: esta demonstração mostra uma edição por vez.</p>':''}${e.kind==='campeonato'?'<p class="hint">🏆 Inscrição de equipe simulada; chaveamento será implementado no aplicativo.</p>':''}`;
+const e=all().find(x=>x.id===active);const capacity=getFilled(e),full=capacity>=e.capacity,member=enrolled(e);const spots=Math.max(0,e.capacity-capacity),isTeam=e.kind==='campeonato';const approx=e.approx?' • marcador aproximado/fictício':'';box.innerHTML=`<div class="line"><div style="min-width:0"><div class="eyebrow">${safe(LABELS[e.kind])} • ${safe(e.city)}${approx}</div><h2 class="event-title">${ICONS[e.sport]} ${safe(e.title)}</h2><div class="small">📅 ${safe(eventDate(e))} às ${safe(e.time)} · 📍 ${safe(e.venue)}</div><div class="small muted">${safe(e.address)}</div></div><div class="stat"><b>${capacity}/${e.capacity}</b><div class="small">${isTeam?'equipes':'pessoas'}</div></div></div><p class="hint">${member?'✅ Inscrição confirmada':full?'🔒 Evento lotado':`🟢 ${spots} ${isTeam?'vagas para equipes':'vagas disponíveis'}`}</p><div class="btns"><button id="join-btn" class="primary grow" ${full&&!member?'disabled':''}>${member?'Cancelar presença':isTeam?'Inscrever equipe':'Confirmar presença'}</button><button id="route-btn" class="secondary">${e.approx?'📍 Ver região':'🧭 Como chegar'}</button></div>${e.kind==='recorrente'?'<p class="hint">🔁 Evento recorrente: esta demonstração mostra uma edição por vez.</p>':''}${e.kind==='campeonato'?'<p class="hint">🏆 Inscrição de equipe simulada; chaveamento será implementado no aplicativo.</p>':''}<section id="participants-panel" data-game-id="${safe(e.id)}" class="roster-panel" aria-label="Participantes da partida"><div class="roster-heading"><h3>👥 Quem vai jogar</h3><button id="refresh-participants" type="button" class="secondary roster-refresh">↻ Atualizar</button></div><p class="roster-caption">Inscritos em ${ICONS[e.sport]} ${safe(e.title)}. Nomes e cidades visíveis a atletas com conta.</p><div class="roster-list" aria-live="polite"><p class="hint">Carregando participantes...</p></div><p class="roster-status" role="status"></p></section>`;
+$('#refresh-participants').addEventListener('click',()=>loadRoster(e,true));
+loadRoster(e);
 $('#join-btn').addEventListener('click',async()=>{
  if(CLOUD_ACTIVE){
   if(!cloud.ready){alert('Conecte-se à internet para confirmar presença.');return}
@@ -297,7 +350,7 @@ $('#join-btn').addEventListener('click',async()=>{
   if(enrolled(e))({error}=await cloud.client.from('registrations').delete().eq('game_id',e.id).eq('user_id',cloud.userId));
   else ({error}=await cloud.client.from('registrations').insert({game_id:e.id,user_id:cloud.userId}));
   if(error)alert('Não foi possível alterar a inscrição. O evento pode estar lotado ou a conexão indisponível.');
-  await syncCloud();render();return;
+  rosterCache.delete(String(e.id));await syncCloud();render();return;
  }
  if(enrolled(e))state.joined=state.joined.filter(id=>id!==e.id);else if(getFilled(e)<e.capacity)state.joined.push(e.id);save();render()
 });$('#route-btn').addEventListener('click',()=>{const fakeAddress=String(e.address).toLowerCase().includes('não informado');const dest=e.approx?`${fakeAddress?'':e.address+', '}${e.city}, SP, Brasil`:`${e.lat},${e.lon}`;const url=e.approx?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dest)}`:`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`;window.open(url,'_blank','noopener,noreferrer')});}
@@ -316,7 +369,7 @@ function showMine(){const el=$('#mine-list');const entries=all().filter(e=>e.own
   if(!cloud.ready){alert('Sem conexão.');return}
   const {error}=await cloud.client.from('registrations').delete().eq('game_id',e.id).eq('user_id',cloud.userId);
   if(error){alert('Não foi possível cancelar sua presença.');return}
-  await syncCloud();return;
+  rosterCache.delete(String(e.id));await syncCloud();return;
  }
  state.joined=state.joined.filter(id=>id!==e.id);save();showMine();render()
 };actions.append(leave)}card.append(info,actions);el.append(card)}}
