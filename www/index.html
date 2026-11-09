@@ -87,7 +87,7 @@
 <button class="primary" type="submit">Criar conta e receber confirmação</button>
 </form>
 <p id="auth-message" class="auth-message" role="status" aria-live="polite"></p>
-<p class="auth-help">Após criar sua conta, confira a mensagem enviada ao seu e-mail. Confirme o endereço antes de entrar. Sua senha não fica salva pelo Bora Jogar.</p>
+<p class="auth-help">Após criar sua conta, confira a mensagem enviada ao seu e-mail. Confirme o endereço antes de entrar. Sua senha não fica salva pelo Bora Jogar. Ao participar de jogos, seu nome de exibição e cidade aparecerão na lista de participantes para outros atletas com conta.</p>
 </section>
 <div id="authenticated-content" hidden><section id="explore" aria-label="Mapa e partidas">
 <div class="filters" aria-label="Filtro de esportes"><button type="button" class="chip" data-sport="todos" aria-pressed="true">🌎 Todos</button><button type="button" class="chip" data-sport="volei" aria-pressed="false">🏐 Vôlei</button><button type="button" class="chip" data-sport="basquete" aria-pressed="false">🏀 Basquete</button><button type="button" class="chip" data-sport="futebol" aria-pressed="false">⚽ Futebol</button></div>
@@ -313,7 +313,7 @@ async function loadRoster(e,force=false){
    list.innerHTML='<ul class="roster-items">'+people.map((p,i)=>{
       const name=String(p.display_name||'Atleta').trim().slice(0,45)||'Atleta';
       const city=String(p.city||'Cidade não informada').trim();
-      const initials=name.split(/\\s+/).slice(0,2).map(x=>x[0]||'').join('').toLocaleUpperCase('pt-BR');
+      const initials=name.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toLocaleUpperCase('pt-BR');
       const me=CLOUD_ACTIVE&&p.athlete_id===cloud.userId;
       return `<li class="roster-item"><div class="roster-avatar" aria-hidden="true">${safe(initials)}</div><div class="roster-person"><strong>${safe(name)}</strong><span>📍 ${safe(city)}</span></div>${me?'<span class="roster-me">Você</span>':''}</li>`;
    }).join('')+'</ul>';
