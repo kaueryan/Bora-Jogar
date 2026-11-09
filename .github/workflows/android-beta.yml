@@ -1,0 +1,54 @@
+name: Gerar Bora Jogar APK de teste
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  android-debug:
+    name: Compilar APK de testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Baixar o projeto
+        uses: actions/checkout@v4
+      - name: Preparar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preparar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund
+      - name: Configurar banco compartilhado (somente chaves PUBLICAS)
+        env:
+          SUPABASE_URL: ${{ vars.BORA_SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.BORA_SUPABASE_PUBLISHABLE_KEY }}
+        run: node scripts/configurar-publico.js
+      - name: Verificar codigo do aplicativo
+        run: npm run verificar
+      - name: Gerar projeto Android
+        run: npx cap add android
+      - name: Sincronizar arquivos web
+        run: npx cap sync android
+      - name: Construir APK debug
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew --no-daemon assembleDebug
+      - name: Disponibilizar APK de teste para baixar
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bora-Jogar-Android-APK-Beta
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

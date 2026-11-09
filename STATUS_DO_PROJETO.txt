@@ -1,0 +1,22 @@
+BORA JOGAR — BETA COM CONTA DE E-MAIL E SENHA — 09/11/2026
+
+CONCLUÍDO E VERIFICADO NO SUPABASE:
+- Projeto Bora Jogar Beta em sa-east-1 ativo.
+- Migração para profiles aplicada, tabelas com RLS.
+- Contas vinculadas a partidas e inscrições, sem login anônimo aceito pelas políticas.
+- Auditor de segurança do Supabase: sem alertas no momento da consulta.
+
+IMPLEMENTADO NO CÓDIGO:
+- Cadastro nome/cidade/esporte/e-mail/senha e confirmação de senha.
+- Login por e-mail/senha; exige e-mail confirmado.
+- Perfil por ID de usuário com atualização no banco; logout.
+- Mapa, lista, quatro cidades, criação e inscrições preservados.
+- Foto continua local por dispositivo.
+
+AINDA PENDENTE:
+- Verificação da configuração Confirm email / links de retorno / entrega de emails no painel Auth.
+- Teste completo usando duas contas reais em dois celulares.
+- APK compilado, repositório GitHub, distribuição Android.
+- Build iOS, autorização Apple Developer e TestFlight.
+
+Atenção: não é app publicado nem instalador pronto.

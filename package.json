@@ -1,0 +1,21 @@
+{
+  "name": "bora-jogar-app-beta",
+  "version": "0.6.0",
+  "private": true,
+  "description": "Bora Jogar: app beta Android e iOS a partir do protótipo visual v4",
+  "scripts": {
+    "android": "cap open android",
+    "ios": "cap open ios",
+    "sync": "cap sync",
+    "preview": "python -m http.server 8080 -d www",
+    "verificar": "node scripts/verificar-projeto.js"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/ios": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0"
+  }
+}

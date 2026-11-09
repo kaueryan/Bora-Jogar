@@ -1,0 +1,36 @@
+name: Conferir projeto iPhone (simulador, sem distribuicao)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+permissions:
+  contents: read
+jobs:
+  ios-simulator:
+    runs-on: macos-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund
+      - name: Validar projeto
+        run: npm run verificar
+      - name: Gerar projeto iOS
+        run: |
+          npx cap add ios
+          npx cap sync ios
+      - name: Compilar para simulador SEM assinatura Apple
+        run: |
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build
+      - name: Salvar app para simulador (NAO TestFlight)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bora-Jogar-iOS-Simulador-Verificacao
+          path: build/ios/Build/Products/Debug-iphonesimulator/App.app
+          retention-days: 7
